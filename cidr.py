@@ -8,10 +8,59 @@
 '''
 import re
 
-#Prompt user for CIDR representation of an IPv4 network block
-#cidr = "149.166.11.7/23"
+#Example CIDR block = 149.166.11.7/23
+
+#Convert a decimal number to a binary octet string
+def decimalToBinaryOctet(decimal):
+   #Make sure the decimal is an int
+   decimal = int(decimal)
+   #Convert decimal number to binary number
+   octet = bin(decimal)
+   #Trim off the leading "0b"
+   octet = octet[2:]
+   #Add leading 0s as needed to fill in digits lost from trimming
+   octet = octet.zfill(8)
+   #Convert the binary octent to a string
+   octet = str(octet)
+   return octet
+
+#Convert an array of bit strings into an array of binary octet strings
+def bitsToBinaryOctets(bits):
+    octets = []
+    tmp = ""
+    j = 1
+    for i in range(0, ipv4_bits):
+        tmp = tmp + str(bits[i])
+        #If we have concatenated 8 bit strings (aka 1 octet)
+        if (j == 8):
+            #Store the octet in the octets array and clear out the tmp variable
+            octets.append(tmp)
+            tmp = ""
+            #Reset the octet counter to 1
+            j = 1
+        else:
+            #Increment the octet counter
+            j = j + 1
+    return octets
+
+#Convert an array of binary octet strings into an IP address string
+def binaryOctetsToDecimalAddress(octets):
+    address = ""
+    for x in octets:
+       decimal = str(binaryOctetToDecimal(x))
+       if not address:
+          address = decimal
+       else:
+          address = address + "." + decimal
+    return address
+
+def binaryOctetToDecimal(octet):
+    return int(octet, 2)
+
+#Prompt the user for a CIDR representation of an IPv4 network block
 cidr = input('Enter a CIDR block in the format x.x.x.x/x): ')
 
+#Verify the input is in fact a CIDR block, and if not, exit
 match = re.search("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$", cidr)
 if match == None:
     print("Invalid CIDR block! Exiting...")
@@ -20,34 +69,24 @@ if match == None:
 #Number of bits in an IPv4 address
 ipv4_bits = 32
 
-#Split CIDR block into host address and subnet bits
+#Split the CIDR block into a host address and subnet bits
 tmp = cidr.split("/")
 if len(tmp) == 2:
     cidr_address = tmp[0]
     cidr_bits = int(tmp[1])
 
-#Convert host address string into ints
-host_ints = []
-host_strs = cidr_address.split(".")
-for x in host_strs:
-   host_ints.append(int(x))
+#Convert the host address string into an array of decimal strings
+host_decimals = cidr_address.split(".")
 
-#Convert host ints into host bits
+#Convert the host decimal array into a host bit array
 host_bits = []
-for x in host_ints:
-   #Convert int to byte
-   byte = bin(x)
-   #Trim off the leading "0b"
-   byte = byte[2:]
-   #Add leadding 0s if needed
-   byte = byte.zfill(8)
-   #Convert the byte to a string
-   byte = str(byte)
-   #Save each character in the string to an element in an array
-   for x in byte:
+for x in host_decimals:
+   octet = decimalToBinaryOctet(x)
+   #Save each character in the octet string to an element in an array
+   for x in octet:
       host_bits.append(x)
 
-#Represent the subnet mask as bits
+#Represent the subnet mask as an array of bits
 subnet_bits = []
 for i in range(ipv4_bits):
    if i < cidr_bits:
@@ -56,46 +95,22 @@ for i in range(ipv4_bits):
       subnet_bits.append(0)
    i = i + 1
 
-#Perform a bitwise "and" between host address bits and subnet mask bits to get the network bits
+#Perform a bitwise "and" between the host address bits and the subnet mask bits to get the network bits
 network_bits = []
 for i in range(ipv4_bits):
     network_bit = int(host_bits[i]) & int(subnet_bits[i])
     network_bits.append(network_bit)
 
-#Convert network bits into bytes
-def charsToBytes(bits):
-    bytes = []
-    tmp = ""
-    y = 1
-    for i in range(0, ipv4_bits):
-        tmp = tmp + str(bits[i])
-        if (y == 8):
-            bytes.append(tmp)
-            tmp = ""
-            y = 1
-        else:
-            y = y + 1
-    return bytes
-
-#Convert network bytes into an network address
-def bytesToAddress(bytes):
-    address = ""
-    for x in bytes:
-       if not address:
-          address = str(int(x, 2))
-       else:
-          address = address + "." + str(int(x, 2))
-    return address
-
 #Calcuate the network address
-network_bytes = charsToBytes(network_bits)
-network_address = bytesToAddress(network_bytes)
+network_octets = bitsToBinaryOctets(network_bits)
+network_address = binaryOctetsToDecimalAddress(network_octets)
 
 #Calcuate the subnet mask
-subnet_bytes = charsToBytes(subnet_bits)
-subnet_mask = bytesToAddress(subnet_bytes)
+subnet_octets = bitsToBinaryOctets(subnet_bits)
+subnet_mask = binaryOctetsToDecimalAddress(subnet_octets)
 
 #Reverse the subnet bits to get the host bits
+#Alternate method = https://stackoverflow.com/questions/1779286/swapping-1-with-0-and-0-with-1-in-a-pythonic-way
 host_bits = []
 for x in subnet_bits:
    if (x == 0): 
@@ -104,44 +119,41 @@ for x in subnet_bits:
       x = 0
    host_bits.append(x)
 
-#Calculate the broadcast address
-broadcast_address = ""
-host_bytes = charsToBytes(host_bits)
+#Calculate the broadcast octets by adding the host decimals and network decimals together
+broadcast_octets = []
+host_octets = bitsToBinaryOctets(host_bits)
 i = 0
-for host_byte in host_bytes:
-    num = int(host_byte, 2) + int(network_bytes[i], 2) 
-    if not broadcast_address:
-        broadcast_address = str(num)
-    else:
-        broadcast_address += "." + str(num)
+for host_octet in host_octets:
+    decimal = binaryOctetToDecimal(host_octet) + binaryOctetToDecimal(network_octets[i]) 
+    octet = decimalToBinaryOctet(decimal)
+    broadcast_octets.append(octet)
     i = i + 1
 
-#Take 2 to the power of the available host bits
-total_hosts = 2**(ipv4_bits - cidr_bits)
+#Calculate the broadcast address
+broadcast_address = binaryOctetsToDecimalAddress(broadcast_octets)
 
-#Subtract the network address and broadcast address which are not usable
-#Take the absolute value in the case this is a single /32 address
+#Calculate the total number of hosts
+#Total hosts = 2 to the power of the available host bits
+bits_available_for_hosts = ipv4_bits - cidr_bits
+total_hosts = 2**(bits_available_for_hosts)
+
+#Calculate the total number of usable hosts by subtracting the network address and broadcast address, which are not usable
+#We need to take the absolute value in case this is a single /32 address
 usable_hosts = abs(total_hosts - 2)
 
 if usable_hosts > 1:
    #FIRST ADDRESS
-   split_address = network_address.split(".")
-   split_address[len(split_address) - 1] = str(int(split_address[len(split_address) - 1]) + 1)
-   first_address = ""
-   for x in split_address:
-    if not first_address:
-        first_address = str(x)
-    else:
-        first_address += "." + str(x)
-  #LAST ADDRESS
-   split_address = broadcast_address.split(".")
-   split_address[len(split_address) - 1] = str(int(split_address[len(split_address) - 1]) - 1)
-   last_address = ""
-   for x in split_address:
-    if not last_address:
-        last_address = str(x)
-    else:
-        last_address += "." + str(x)
+   last_octet_pos = len(network_octets) - 1
+   octet = network_octets[last_octet_pos] 
+   decimal = binaryOctetToDecimal(octet) + 1
+   network_octets[last_octet_pos] = decimalToBinaryOctet(decimal)
+   first_address = binaryOctetsToDecimalAddress(network_octets)
+   #LAST ADDRESS
+   last_octet_pos = len(broadcast_octets) - 1
+   octet = broadcast_octets[last_octet_pos] 
+   decimal = binaryOctetToDecimal(octet) - 1
+   broadcast_octets[last_octet_pos] = decimalToBinaryOctet(decimal)
+   last_address = binaryOctetsToDecimalAddress(broadcast_octets)
 else:
    first_address = network_address
    last_address = broadcast_address
