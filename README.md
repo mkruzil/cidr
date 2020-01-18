@@ -1,6 +1,6 @@
 # cidr
 
-A python script that parses a CIDR block representation of a subnetwork
+A python script that parses a CIDR block representation of a subnetwork.
 
 Ex. 149.166.11.7/23
 
