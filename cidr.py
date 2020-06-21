@@ -6,9 +6,8 @@
     Date Created:   1/17/2020 11:00 PM
     ===========================================================================
 '''
+import sys
 import re
-
-#Example CIDR block = 149.166.11.7/23
 
 #Convert a decimal number to a binary octet string
 def decimalToBinaryOctet(decimal):
@@ -58,7 +57,12 @@ def binaryOctetToDecimal(octet):
     return int(octet, 2)
 
 #Prompt the user for a CIDR representation of an IPv4 network block
-cidr = input('Enter a CIDR block in the format x.x.x.x/x): ')
+#Example CIDR block = 149.166.11.7/23
+prompt = 'Enter a CIDR block in the format x.x.x.x/x): '
+if sys.version_info[0] < 3:
+   cidr = raw_input(prompt)
+else:
+   cidr = input(prompt)
 
 #Verify the input is in fact a CIDR block, and if not, exit
 match = re.search("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$", cidr)
@@ -137,26 +141,36 @@ broadcast_address = binaryOctetsToDecimalAddress(broadcast_octets)
 bits_available_for_hosts = ipv4_bits - cidr_bits
 total_hosts = 2**(bits_available_for_hosts)
 
-#Calculate the total number of usable hosts by subtracting the network address and broadcast address, which are not usable
-#We need to take the absolute value in case this is a single /32 address
-usable_hosts = abs(total_hosts - 2)
+if total_hosts > 2:
 
-if usable_hosts > 1:
    #FIRST ADDRESS
    last_octet_pos = len(network_octets) - 1
    octet = network_octets[last_octet_pos] 
    decimal = binaryOctetToDecimal(octet) + 1
    network_octets[last_octet_pos] = decimalToBinaryOctet(decimal)
    first_address = binaryOctetsToDecimalAddress(network_octets)
+
    #LAST ADDRESS
    last_octet_pos = len(broadcast_octets) - 1
    octet = broadcast_octets[last_octet_pos] 
    decimal = binaryOctetToDecimal(octet) - 1
    broadcast_octets[last_octet_pos] = decimalToBinaryOctet(decimal)
    last_address = binaryOctetsToDecimalAddress(broadcast_octets)
+
+   usable_hosts = total_hosts - 2
+
+elif  total_hosts == 2:
+   #192.168.1.0/31 = only two hosts: network and broadcast
+   first_address = "NA"
+   last_address = "NA"
+   usable_hosts = 0
 else:
+   #192.168.1.0/32 = only one host, therefore cannot determine nature of network
    first_address = network_address
    last_address = broadcast_address
+   network_address = "NA"
+   broadcast_address = "NA"
+   usable_hosts = 1
 
 print("CIDR Block: " + cidr)
 print("Subnet Mask: " + subnet_mask)
